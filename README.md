@@ -48,9 +48,9 @@ SELECT * FROM `questions_answers`;
 Using the view from exercise 4, the following query creates a stored procedure with one parameter `keyword`, which returns all posts where the keyword appears in the post text and the comment text.
 ```sql
 DELIMITER //
-CREATE PROCEDURE `search_qa` (in q_term varchar(255))
+CREATE PROCEDURE `search_qa` (in keyword varchar(255))
 BEGIN
-  SELECT * FROM `questions_answers` WHERE jsonData->"$.post_text" LIKE CONCAT('%', q_term, '%') AND jsonData->"$.comment_text" LIKE CONCAT('%', q_term, '%');
+  SELECT * FROM `questions_answers` WHERE jsonData->"$.post_text" LIKE CONCAT('%', keyword, '%') AND jsonData->"$.comment_text" LIKE CONCAT('%', keyword, '%');
 END //
 DELIMITER ;
 ```
