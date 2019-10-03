@@ -123,7 +123,7 @@ create index votes_idx_1 on votes(PostId);
 DELIMITER //
 CREATE PROCEDURE `denormalizeComments` (in postID int(11))
 BEGIN
-  UPDATE posts SET jsonData=(SELECT JSON_ARRAYAGG(JSON_OBJECT('id', Id, 'post_id', PostId, 'score', Score, 'text', Text, 'created_at', CreationDate, 'user_id', UserId)) FROM comments WHERE PostId=postID) WHERE Id=postID;
+  UPDATE `posts` SET jsonData=(SELECT JSON_ARRAYAGG(JSON_OBJECT('id', Id, 'post_id', PostId, 'score', Score, 'text', Text, 'created_at', CreationDate, 'user_id', UserId)) FROM comments WHERE PostId=postID) WHERE Id=postID;
 END //
 DELIMITER ;
 
@@ -131,7 +131,7 @@ DELIMITER ;
 DELIMITER //
 CREATE trigger `appendJsonComment` AFTER INSERT ON comments
 FOR EACH ROW BEGIN
-    update posts set jsonData=JSON_ARRAY_APPEND(jsonData, '$', (SELECT JSON_OBJECT('id', Id, 'post_id', PostId, 'score', Score, 'text', Text, 'created_at', CreationDate, 'user_id', UserId) FROM comments WHERE Id=NEW.Id)) WHERE Id=NEW.PostId;
+    update `posts` set jsonData=JSON_ARRAY_APPEND(jsonData, '$', (SELECT JSON_OBJECT('id', Id, 'post_id', PostId, 'score', Score, 'text', Text, 'created_at', CreationDate, 'user_id', UserId) FROM comments WHERE Id=NEW.Id)) WHERE Id=NEW.PostId;
 END //
 DELIMITER ;
 
@@ -139,7 +139,23 @@ DELIMITER ;
 DELIMITER //
 CREATE PROCEDURE `addComment` (in Id int(11), in PostId int(11), in Score int(11), in Text text, in CreationDate datetime, in UserId int(11))
 BEGIN
-  INSERT INTO comments VALUES(Id, PostId, Score, Text, CreationDate, UserId);
-  update posts set jsonData=JSON_ARRAY_APPEND(jsonData, '$', (SELECT JSON_OBJECT('id', Id, 'post_id', PostId, 'score', Score, 'text', Text, 'created_at', CreationDate, 'user_id', UserId) FROM comments WHERE Id=last_insert_id())) WHERE Id=PostId;
+  INSERT INTO `comments` VALUES(Id, PostId, Score, Text, CreationDate, UserId);
+  update `posts` set jsonData=JSON_ARRAY_APPEND(jsonData, '$', (SELECT JSON_OBJECT('id', Id, 'post_id', PostId, 'score', Score, 'text', Text, 'created_at', CreationDate, 'user_id', UserId) FROM comments WHERE Id=last_insert_id())) WHERE Id=PostId;
 END //
 DELIMITER ;
+
+
+CREATE VIEW `questions_answers` AS SELECT JSON_OBJECT('poster_name', `poster`.`DisplayName`, 'post_text', `posts`.`Body`, 'post_score', `posts`.`Score`, 'commentor_name', `commentor`.`DisplayName`, 'comment_text', `comments`.`Text`, 'comment_score', `comments`.`Score`) as jsonData FROM `posts` INNER JOIN `comments` ON `posts`.`AcceptedAnswerId`=`comments`.`Id` INNER JOIN `users` as `poster` ON `posts`.`OwnerUserId`=`poster`.`Id` INNER JOIN `users` as `commentor` ON `comments`.`UserId`=`commentor`.`Id`;
+
+SELECT * FROM `questions_answers`;
+
+
+DROP procedure search_qa;
+DELIMITER //
+CREATE PROCEDURE `search_qa` (in q_term varchar(255))
+BEGIN
+  SELECT * FROM `questions_answers` WHERE jsonData->"$.post_text" LIKE CONCAT('%', q_term, '%') AND jsonData->"$.comment_text" LIKE CONCAT('%', q_term, '%');
+END //
+DELIMITER ;
+
+call search_qa("Just my luck")
